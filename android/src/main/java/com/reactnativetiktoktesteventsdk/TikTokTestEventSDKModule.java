@@ -1,97 +1,148 @@
 package com.reactnativetiktoktesteventsdk;
 
+import android.app.Application;
+import android.content.Context;
+import androidx.annotation.NonNull;
+
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
-import com.facebook.react.bridge.Promise;
-import com.facebook.react.bridge.ReadableMap;
-import com.tiktok.TikTokBusinessSdk;
-import com.tiktok.TikTokBusinessSdk.TTConfig;
-import com.tiktok.appevents.TTBaseEvent;
 
-import org.json.JSONObject;
+import com.tiktok.TiktokBusinessSdk;
+import com.tiktok.TiktokBusinessSdk.TTConfig;
+import com.tiktok.TiktokBusinessSdk.TTInitCallback;
+import com.tiktok.TiktokBusinessSdk.EventName;
+import com.tiktok.TiktokBusinessSdk.TTBaseEvent;
+import com.tiktok.TiktokBusinessSdk.TTAddToCartEvent;
+import com.tiktok.TiktokBusinessSdk.TTContentParams;
 
-public class TikTokTestEventSDKModule extends ReactContextBaseJavaModule {
+import java.util.HashMap;
+import java.util.Map;
 
-    public TikTokTestEventSDKModule(ReactApplicationContext reactContext) {
+public class TikTokModule extends ReactContextBaseJavaModule {
+
+    private static final String MODULE_NAME = "TikTokTestEventSDK";
+
+    public TikTokModule(@NonNull ReactApplicationContext reactContext) {
         super(reactContext);
     }
 
+    @NonNull
     @Override
     public String getName() {
-        return "TikTokTestEventSDK";
+        return MODULE_NAME;
     }
 
+    /**
+     * Initialize the TikTok SDK
+     *
+     * @param appId      Your Android package name or iOS listing ID
+     * @param ttAppId    Your TikTok App ID from Events Manager
+     * @param debugMode  Enable debug mode (optional)
+     */
     @ReactMethod
-    public void initialize(String appId, String tiktokAppId, boolean debug, Promise promise) {
-        try {
-            TTConfig ttConfig = new TTConfig(getReactApplicationContext())
-                    .setAppId(appId)
-                    .setTTAppId(tiktokAppId);
+    public void initializeSdk(String appId, String ttAppId, boolean debugMode) {
+        Context context = getReactApplicationContext().getApplicationContext();
+        TTConfig ttConfig = new TTConfig(context)
+                .setAppId(appId)
+                .setTTAppId(ttAppId);
 
-            if (debug) {
-                ttConfig.openDebugMode()
-                        .setLogLevel(TikTokBusinessSdk.LogLevel.DEBUG);
+        if (debugMode) {
+            ttConfig.openDebugMode()
+                    .setLogLevel(TiktokBusinessSdk.LogLevel.DEBUG);
+        }
+
+        TiktokBusinessSdk.initializeSdk(ttConfig, new TTInitCallback() {
+            @Override
+            public void success() {
+                // Initialization successful
+                // You can send an event or log if needed
             }
 
-            TikTokBusinessSdk.initializeSdk(ttConfig);
-            promise.resolve(null);
-        } catch (Exception e) {
-            promise.reject("INITIALIZATION_ERROR", e.getMessage());
-        }
-    }
-
-    @ReactMethod
-    public void trackEvent(String eventName, String eventId, ReadableMap properties, Promise promise) {
-        try {
-            TTBaseEvent.Builder eventBuilder = TTBaseEvent.newBuilder(eventName);
-            
-            if (eventId != null && !eventId.isEmpty()) {
-                eventBuilder.setEventID(eventId);
+            @Override
+            public void fail(int code, String msg) {
+                // Initialization failed
+                // Handle failure
             }
+        });
 
-            if (properties != null) {
-                JSONObject jsonProperties = new JSONObject(properties.toHashMap());
-                for (Iterator<String> it = jsonProperties.keys(); it.hasNext(); ) {
-                    String key = it.next();
-                    eventBuilder.addProperty(key, jsonProperties.getString(key));
-                }
-            }
-
-            TikTokBusinessSdk.trackTTEvent(eventBuilder.build());
-            promise.resolve(null);
-        } catch (Exception e) {
-            promise.reject("TRACK_EVENT_ERROR", e.getMessage());
-        }
+        // Start tracking after initialization
+        TiktokBusinessSdk.startTrack();
     }
 
+    /**
+     * Track a standard event without properties
+     *
+     * @param eventName Name of the event to track
+     */
     @ReactMethod
-    public void identify(String externalId, String externalUsername, String phoneNumber, String email, Promise promise) {
-        try {
-            TikTokBusinessSdk.identify(externalId, externalUsername, phoneNumber, email);
-            promise.resolve(null);
-        } catch (Exception e) {
-            promise.reject("IDENTIFY_ERROR", e.getMessage());
-        }
+    public void trackEvent(String eventName) {
+        TiktokBusinessSdk.trackTTEvent(eventName);
     }
 
+    /**
+     * Track a standard event with an event ID
+     *
+     * @param eventName Name of the event to track
+     * @param eventId   ID of the event
+     */
     @ReactMethod
-    public void logout(Promise promise) {
-        try {
-            TikTokBusinessSdk.logout();
-            promise.resolve(null);
-        } catch (Exception e) {
-            promise.reject("LOGOUT_ERROR", e.getMessage());
-        }
+    public void trackEventWithId(String eventName, String eventId) {
+        TiktokBusinessSdk.trackTTEvent(eventName, eventId);
     }
 
+    /**
+     * Track a custom event with properties
+     *
+     * @param eventName Name of the custom event
+     * @param properties Map of properties to include
+     */
     @ReactMethod
-    public void startTrack(Promise promise) {
-        try {
-            TikTokBusinessSdk.startTrack();
-            promise.resolve(null);
-        } catch (Exception e) {
-            promise.reject("START_TRACK_ERROR", e.getMessage());
+    public void trackCustomEvent(String eventName, Map<String, Object> properties) {
+        TTBaseEvent event = TTBaseEvent.newBuilder(eventName);
+        for (Map.Entry<String, Object> entry : properties.entrySet()) {
+            event.addProperty(entry.getKey(), entry.getValue().toString());
         }
+        TiktokBusinessSdk.trackTTEvent(event);
     }
+
+    /**
+     * Identify user with external IDs
+     *
+     * @param externalId       Unique advertiser ID
+     * @param externalUserName Username from advertiser
+     * @param phoneNumber      User's phone number in E.164 format
+     * @param email            User's email
+     */
+    @ReactMethod
+    public void identifyUser(String externalId, String externalUserName, String phoneNumber, String email) {
+        TiktokBusinessSdk.identify(externalId, externalUserName, phoneNumber, email);
+    }
+
+    /**
+     * Logout user
+     */
+    @ReactMethod
+    public void logoutUser() {
+        TiktokBusinessSdk.logout();
+    }
+
+    /**
+     * Enable Auto IAP Tracking
+     *
+     * @param appId   Your Android package name
+     * @param ttAppId Your TikTok App ID
+     */
+    @ReactMethod
+    public void enableAutoIapTracking(String appId, String ttAppId) {
+        Context context = getReactApplicationContext().getApplicationContext();
+        TTConfig ttConfig = new TTConfig(context)
+                .setAppId(appId)
+                .setTTAppId(ttAppId)
+                .enableAutoIapTrack();
+
+        TiktokBusinessSdk.initializeSdk(ttConfig);
+    }
+
+    // Add more methods as needed based on the SDK functionalities
 }
