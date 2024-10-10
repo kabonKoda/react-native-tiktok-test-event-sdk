@@ -1,8 +1,3 @@
-plugins {
-    id 'com.android.application' // or 'com.android.library' if it's a library module
-    id 'com.facebook.react' // React Native plugin
-}
-
 android {
     compileSdkVersion compileSdkVersion
     buildToolsVersion buildToolsVersion
