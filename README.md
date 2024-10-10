@@ -1,3 +1,5 @@
+![Library Logo](assets/logo.webp)
+
 # React Native TikTok Test Event SDK
 
 This library provides a React Native wrapper for the TikTok App Events SDK, enabling seamless integration of TikTok's event tracking functionality into your React Native applications.
